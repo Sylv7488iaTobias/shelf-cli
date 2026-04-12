@@ -1,0 +1,12 @@
+# Typescript
+
+node_modules/
+*.js.map
+*.tsbuildinfo
+.next/
+.DS_Store
+out/
+Desktop.ini
+.env.local
+.env
+dist/
