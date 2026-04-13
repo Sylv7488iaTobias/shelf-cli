@@ -47,6 +47,17 @@ export function pullChanges(opts: SyncOptions): void {
   });
 }
 
+/**
+ * Returns true if the working tree has uncommitted changes (staged or unstaged).
+ */
+export function hasUncommittedChanges(storePath: string): boolean {
+  const result = execSync("git status --porcelain", {
+    cwd: storePath,
+    stdio: "pipe",
+  });
+  return result.toString().trim().length > 0;
+}
+
 export function syncStore(opts: SyncOptions): void {
   if (!isGitRepo(opts.storePath)) {
     throw new Error(`Not a git repository: ${opts.storePath}`);
