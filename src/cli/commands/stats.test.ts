@@ -14,6 +14,19 @@ function makeStorePath(dir: string): string {
   return path.join(dir, "bookmarks.json");
 }
 
+/** Helper to build a minimal bookmark object with sensible defaults. */
+function makeBookmark(
+  overrides: Partial<{ name: string; url: string; tags: string[]; pinned: boolean; createdAt: string }> = {}
+) {
+  return {
+    name: "Test",
+    url: "https://example.com",
+    tags: [] as string[],
+    pinned: false,
+    ...overrides,
+  };
+}
+
 describe("computeStats", () => {
   let tmpDir: string;
   let storePath: string;
@@ -40,8 +53,8 @@ describe("computeStats", () => {
   it("counts total bookmarks correctly", () => {
     saveStore(storePath, {
       bookmarks: [
-        { name: "A", url: "https://a.com", tags: [], pinned: false },
-        { name: "B", url: "https://b.com", tags: [], pinned: false },
+        makeBookmark({ name: "A", url: "https://a.com" }),
+        makeBookmark({ name: "B", url: "https://b.com" }),
       ],
     });
     const stats = computeStats(storePath);
@@ -51,8 +64,8 @@ describe("computeStats", () => {
   it("counts pinned bookmarks", () => {
     saveStore(storePath, {
       bookmarks: [
-        { name: "A", url: "https://a.com", tags: [], pinned: true },
-        { name: "B", url: "https://b.com", tags: [], pinned: false },
+        makeBookmark({ name: "A", url: "https://a.com", pinned: true }),
+        makeBookmark({ name: "B", url: "https://b.com", pinned: false }),
       ],
     });
     const stats = computeStats(storePath);
@@ -62,9 +75,9 @@ describe("computeStats", () => {
   it("aggregates tag counts and returns top tags", () => {
     saveStore(storePath, {
       bookmarks: [
-        { name: "A", url: "https://a.com", tags: ["dev", "ts"], pinned: false },
-        { name: "B", url: "https://b.com", tags: ["dev"], pinned: false },
-        { name: "C", url: "https://c.com", tags: ["ts", "tools"], pinned: false },
+        makeBookmark({ name: "A", url: "https://a.com", tags: ["dev", "ts"] }),
+        makeBookmark({ name: "B", url: "https://b.com", tags: ["dev"] }),
+        makeBookmark({ name: "C", url: "https://c.com", tags: ["ts", "tools"] }),
       ],
     });
     const stats = computeStats(storePath);
@@ -76,8 +89,8 @@ describe("computeStats", () => {
   it("returns recently added sorted by date", () => {
     saveStore(storePath, {
       bookmarks: [
-        { name: "Old", url: "https://old.com", tags: [], pinned: false, createdAt: "2023-01-01T00:00:00Z" },
-        { name: "New", url: "https://new.com", tags: [], pinned: false, createdAt: "2024-06-01T00:00:00Z" },
+        makeBookmark({ name: "Old", url: "https://old.com", createdAt: "2023-01-01T00:00:00Z" }),
+        makeBookmark({ name: "New", url: "https://new.com", createdAt: "2024-06-01T00:00:00Z" }),
       ],
     });
     const stats = computeStats(storePath);
