@@ -20,6 +20,11 @@ export function registerSearchCommand(program: Command): void {
           process.exit(1);
         }
 
+        if (query.trim().length === 0) {
+          console.error('Error: search query cannot be empty or whitespace');
+          process.exit(1);
+        }
+
         let results = searchBookmarks(store.bookmarks, query);
 
         if (options.tag) {
