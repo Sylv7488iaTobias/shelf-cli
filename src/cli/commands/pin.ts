@@ -39,7 +39,11 @@ export function registerPinCommand(program: Command): void {
         console.log(`${action} bookmark "${name}".`);
 
         if (options.sync !== false) {
-          await commitBookmarkChanges(`${action.toLowerCase()} bookmark: ${name}`, options.store);
+          try {
+            await commitBookmarkChanges(`${action.toLowerCase()} bookmark: ${name}`, options.store);
+          } catch (syncErr) {
+            console.warn(`Warning: Changes saved locally but failed to sync: ${(syncErr as Error).message}`);
+          }
         }
       } catch (err) {
         console.error("Error updating bookmark pin:", (err as Error).message);
