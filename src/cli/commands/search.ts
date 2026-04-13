@@ -33,6 +33,7 @@ export function registerSearchCommand(program: Command): void {
           );
         }
 
+        const totalResults = results.length;
         results = results.slice(0, limit);
 
         if (results.length === 0) {
@@ -43,6 +44,9 @@ export function registerSearchCommand(program: Command): void {
         if (options.json) {
           console.log(JSON.stringify(results, null, 2));
         } else {
+          if (totalResults > limit) {
+            console.log(`Showing ${limit} of ${totalResults} results for "${query}":`);
+          }
           console.log(formatSearchResults(results));
         }
       } catch (err) {
