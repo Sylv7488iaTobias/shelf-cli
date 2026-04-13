@@ -57,6 +57,14 @@ describe('addCommand', () => {
     );
   });
 
+  it('handles comma-separated tags', async () => {
+    await addCommand('https://example.com', { tags: 'dev,tools,cli' });
+
+    expect(mockAddBookmark).toHaveBeenCalledWith(
+      expect.objectContaining({ tags: ['dev', 'tools', 'cli'] })
+    );
+  });
+
   it('calls commitBookmarkChanges when --sync flag is set', async () => {
     await addCommand('https://example.com', { sync: true });
 
