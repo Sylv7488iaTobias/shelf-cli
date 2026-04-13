@@ -16,6 +16,12 @@ export function registerCopyCommand(program: Command): void {
 
         if (!bookmark) {
           console.error(`Bookmark "${name}" not found.`);
+          const similar = store.bookmarks
+            .filter((b) => b.name.toLowerCase().includes(name.toLowerCase()))
+            .map((b) => b.name);
+          if (similar.length > 0) {
+            console.error(`Did you mean: ${similar.join(", ")}?`);
+          }
           process.exit(1);
         }
 
