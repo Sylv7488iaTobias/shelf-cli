@@ -26,10 +26,17 @@ export function registerTagCommand(program: Command): void {
           return;
         }
 
+        // Normalize tags by trimming whitespace and filtering out empty strings
+        const normalizedTags = tags.map((t) => t.trim()).filter((t) => t.length > 0);
+        if (normalizedTags.length === 0) {
+          console.error("No valid tags provided.");
+          process.exit(1);
+        }
+
         if (options.remove) {
           const before = bookmark.tags ?? [];
-          bookmark.tags = before.filter((t) => !tags.includes(t));
-          const removed = before.filter((t) => tags.includes(t));
+          bookmark.tags = before.filter((t) => !normalizedTags.includes(t));
+          const removed = before.filter((t) => normalizedTags.includes(t));
           if (removed.length === 0) {
             console.log(`No matching tags found to remove.`);
           } else {
@@ -38,7 +45,7 @@ export function registerTagCommand(program: Command): void {
         } else {
           const existing = new Set(bookmark.tags ?? []);
           const added: string[] = [];
-          for (const tag of tags) {
+          for (const tag of normalizedTags) {
             if (!existing.has(tag)) {
               existing.add(tag);
               added.push(tag);
