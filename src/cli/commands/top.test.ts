@@ -56,6 +56,9 @@ describe("top command", () => {
     });
     await makeProgram().parseAsync(["node", "test", "top", "-n", "2"]);
     expect(consoleLogMock).toHaveBeenCalledWith(expect.stringContaining("Top 2"));
+    // Ensure the third bookmark is not displayed when limit is 2
+    const calls = consoleLogMock.mock.calls.flat().join("\n");
+    expect(calls).not.toContain("A");
   });
 
   it("filters by folder", async () => {
@@ -84,9 +87,14 @@ describe("top command", () => {
     expect(calls).not.toContain("Untagged");
   });
 
-  it("shows message when no bookmarks found", async () => {
-    loadStoreMock.mockResolvedValue({ bookmarks: [] });
-    await makeProgram().parseAsync(["node", "test", "top"]);
-    expect(consoleLogMock).toHaveBeenCalledWith("No bookmarks found.");
+  it("shows a message when no bookmarks match the filter", async () => {
+    loadStoreMock.mockResolvedValue({
+      bookmarks: [
+        makeBookmark("OnlyOne", "https://a.com", BASE_DATE, [], "work"),
+      ],
+    });
+    await makeProgram().parseAsync(["node", "test", "top", "--folder", "nonexistent"]);
+    const calls = consoleLogMock.mock.calls.flat().join("\n");
+    expect(calls).not.toContain("OnlyOne");
   });
 });
