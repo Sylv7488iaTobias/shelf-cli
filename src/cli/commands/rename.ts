@@ -1,39 +1,42 @@
 import { Command } from "commander";
 import { loadStore, saveStore } from "../../store/bookmarkStore";
-import { commitBookmarkChanges } from "../../sync";
 
 export function registerRenameCommand(program: Command): void {
   program
-    .command("rename <id> <newTitle>")
-    .description("Rename a bookmark's title by its ID")
-    .option("-s, --sync", "commit and push changes after renaming")
-    .action(async (id: string, newTitle: string, options: { sync?: boolean }) => {
+    .command("rename <oldName> <newName>")
+    .description("Rename a bookmark by its current name")
+    .option("-s, --store <path>", "path to bookmark store")
+    .action(async (oldName: string, newName: string, opts) => {
       try {
-        const store = await loadStore();
-        const bookmark = store.bookmarks.find((b) => b.id === id);
+        const store = await loadStore(opts.store);
 
-        if (!bookmark) {
-          console.error(`Error: No bookmark found with ID "${id}"`);
+        const index = store.bookmarks.findIndex(
+          (b) => b.name.toLowerCase() === oldName.toLowerCase()
+        );
+
+        if (index === -1) {
+          console.error(`No bookmark found with name: ${oldName}`);
           process.exit(1);
         }
 
-        const oldTitle = bookmark.title;
-        bookmark.title = newTitle.trim();
+        const conflict = store.bookmarks.find(
+          (b) =>
+            b.name.toLowerCase() === newName.toLowerCase() &&
+            b.name.toLowerCase() !== oldName.toLowerCase()
+        );
 
-        if (!bookmark.title) {
-          console.error("Error: New title cannot be empty.");
+        if (conflict) {
+          console.error(`A bookmark named "${newName}" already exists.`);
           process.exit(1);
         }
 
-        await saveStore(store);
-        console.log(`Renamed "${oldTitle}" → "${bookmark.title}"`);
+        const old = store.bookmarks[index].name;
+        store.bookmarks[index].name = newName;
 
-        if (options.sync) {
-          await commitBookmarkChanges(`rename bookmark ${id}: "${oldTitle}" → "${bookmark.title}"`);
-          console.log("Changes committed and pushed.");
-        }
-      } catch (err) {
-        console.error("Error renaming bookmark:", (err as Error).message);
+        await saveStore(store, opts.store);
+        console.log(`Renamed "${old}" to "${newName}".`);
+      } catch (err: any) {
+        console.error("Error renaming bookmark:", err.message);
         process.exit(1);
       }
     });

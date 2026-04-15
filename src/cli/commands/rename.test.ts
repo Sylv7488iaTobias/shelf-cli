@@ -1,82 +1,80 @@
 import { Command } from "commander";
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
 import { registerRenameCommand } from "./rename";
-import { loadStore, saveStore } from "../../store/bookmarkStore";
-import { commitBookmarkChanges } from "../../sync";
+import { saveStore } from "../../store/bookmarkStore";
 
-jest.mock("../../store/bookmarkStore");
-jest.mock("../../sync");
+async function makeTempDir(): Promise<string> {
+  return fs.mkdtemp(path.join(os.tmpdir(), "shelf-rename-"));
+}
 
-const mockLoadStore = loadStore as jest.MockedFunction<typeof loadStore>;
-const mockSaveStore = saveStore as jest.MockedFunction<typeof saveStore>;
-const mockCommit = commitBookmarkChanges as jest.MockedFunction<typeof commitBookmarkChanges>;
-
-function makeProgram() {
+function makeProgram(storePath: string): Command {
   const program = new Command();
   program.exitOverride();
   registerRenameCommand(program);
   return program;
 }
 
-const sampleStore = () => ({
+const baseStore = () => ({
+  version: 1,
   bookmarks: [
-    { id: "abc123", title: "Old Title", url: "https://example.com", tags: [], createdAt: "2024-01-01" },
+    { id: "1", name: "GitHub", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+    { id: "2", name: "MDN", url: "https://developer.mozilla.org", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
   ],
 });
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  mockSaveStore.mockResolvedValue(undefined);
-  mockCommit.mockResolvedValue(undefined);
+test("renames an existing bookmark", async () => {
+  const dir = await makeTempDir();
+  const storePath = path.join(dir, "bookmarks.json");
+  await saveStore(baseStore(), storePath);
+
+  const program = makeProgram(storePath);
+  await program.parseAsync(["node", "test", "rename", "GitHub", "GH", "--store", storePath]);
+
+  const data = JSON.parse(await fs.readFile(storePath, "utf-8"));
+  expect(data.bookmarks.find((b: any) => b.name === "GH")).toBeDefined();
+  expect(data.bookmarks.find((b: any) => b.name === "GitHub")).toBeUndefined();
 });
 
-test("renames a bookmark by id", async () => {
-  const store = sampleStore();
-  mockLoadStore.mockResolvedValue(store as any);
-  const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+test("exits with error if old name not found", async () => {
+  const dir = await makeTempDir();
+  const storePath = path.join(dir, "bookmarks.json");
+  await saveStore(baseStore(), storePath);
 
-  await makeProgram().parseAsync(["node", "test", "rename", "abc123", "New Title"]);
-
-  expect(store.bookmarks[0].title).toBe("New Title");
-  expect(mockSaveStore).toHaveBeenCalledWith(store);
-  expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("New Title"));
-  consoleSpy.mockRestore();
-});
-
-test("errors when bookmark id not found", async () => {
-  mockLoadStore.mockResolvedValue(sampleStore() as any);
-  const exitSpy = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
-  const errorSpy = jest.spyOn(console, "error").mockImplementation();
+  const program = makeProgram(storePath);
+  const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
 
   await expect(
-    makeProgram().parseAsync(["node", "test", "rename", "notreal", "New Title"])
+    program.parseAsync(["node", "test", "rename", "Nonexistent", "New", "--store", storePath])
   ).rejects.toThrow();
 
-  expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("No bookmark found"));
-  exitSpy.mockRestore();
-  errorSpy.mockRestore();
+  mockExit.mockRestore();
 });
 
-test("commits changes when --sync flag is passed", async () => {
-  const store = sampleStore();
-  mockLoadStore.mockResolvedValue(store as any);
-  const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+test("exits with error if new name conflicts with existing bookmark", async () => {
+  const dir = await makeTempDir();
+  const storePath = path.join(dir, "bookmarks.json");
+  await saveStore(baseStore(), storePath);
 
-  await makeProgram().parseAsync(["node", "test", "rename", "abc123", "Synced Title", "--sync"]);
-
-  expect(mockCommit).toHaveBeenCalledWith(expect.stringContaining("abc123"));
-  consoleSpy.mockRestore();
-});
-
-test("errors on empty new title", async () => {
-  mockLoadStore.mockResolvedValue(sampleStore() as any);
-  const exitSpy = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
-  const errorSpy = jest.spyOn(console, "error").mockImplementation();
+  const program = makeProgram(storePath);
+  const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
 
   await expect(
-    makeProgram().parseAsync(["node", "test", "rename", "abc123", "   "])
+    program.parseAsync(["node", "test", "rename", "GitHub", "MDN", "--store", storePath])
   ).rejects.toThrow();
 
-  expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cannot be empty"));
-  exitSpy.mockRestore();
-  errorSpy.mockRestore();
+  mockExit.mockRestore();
+});
+
+test("rename is case-insensitive for lookup", async () => {
+  const dir = await makeTempDir();
+  const storePath = path.join(dir, "bookmarks.json");
+  await saveStore(baseStore(), storePath);
+
+  const program = makeProgram(storePath);
+  await program.parseAsync(["node", "test", "rename", "github", "GitHubNew", "--store", storePath]);
+
+  const data = JSON.parse(await fs.readFile(storePath, "utf-8"));
+  expect(data.bookmarks.find((b: any) => b.name === "GitHubNew")).toBeDefined();
 });
