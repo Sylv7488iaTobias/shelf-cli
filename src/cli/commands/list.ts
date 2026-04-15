@@ -32,9 +32,11 @@ export function registerListCommand(program: Command): void {
 
         if (options.limit) {
           const limit = parseInt(options.limit, 10);
-          if (!isNaN(limit) && limit > 0) {
-            bookmarks = bookmarks.slice(0, limit);
+          if (isNaN(limit) || limit <= 0) {
+            console.error('Invalid value for --limit: must be a positive integer.');
+            process.exit(1);
           }
+          bookmarks = bookmarks.slice(0, limit);
         }
 
         if (options.json) {
