@@ -69,4 +69,14 @@ describe("copy command", () => {
 
     expect(bookmarkStore.loadStore).toHaveBeenCalledWith("/custom/path");
   });
+
+  it("does not write to clipboard when bookmark is not found", async () => {
+    const program = makeProgram();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(process, "exit").mockImplementation((() => {}) as any);
+
+    await program.parseAsync(["node", "test", "copy", "NonExistent"]);
+
+    expect(clipboardy.write).not.toHaveBeenCalled();
+  });
 });
