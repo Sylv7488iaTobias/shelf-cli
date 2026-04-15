@@ -8,8 +8,21 @@ export interface PagePreview {
   url: string;
 }
 
+/**
+ * Fetches and parses basic page metadata (title and description) from a given URL.
+ * Extracts content from <title> and <meta name="description"> tags.
+ *
+ * @param url - The URL of the page to preview
+ * @returns A PagePreview object containing title, description, and url
+ * @throws If the HTTP request fails or times out
+ */
 export async function fetchPreview(url: string): Promise<PagePreview> {
   const res = await fetch(url, { timeout: 5000 } as any);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+
   const html = await res.text();
 
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
