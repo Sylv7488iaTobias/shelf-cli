@@ -3,78 +3,93 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 import { registerRenameCommand } from "./rename";
-import { saveStore } from "../../store/bookmarkStore";
 
 async function makeTempDir(): Promise<string> {
-  return fs.mkdtemp(path.join(os.tmpdir(), "shelf-rename-"));
+  return fs.mkdtemp(path.join(os.tmpdir(), "shelf-rename-test-"));
 }
 
-function makeProgram(storePath: string): Command {
+function makeProgram(): Command {
   const program = new Command();
   program.exitOverride();
   registerRenameCommand(program);
   return program;
 }
 
-const baseStore = () => ({
-  version: 1,
-  bookmarks: [
-    { id: "1", name: "GitHub", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
-    { id: "2", name: "MDN", url: "https://developer.mozilla.org", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
-  ],
-});
-
-test("renames an existing bookmark", async () => {
-  const dir = await makeTempDir();
+async function makeStorePath(dir: string, bookmarks: object[]): Promise<string> {
   const storePath = path.join(dir, "bookmarks.json");
-  await saveStore(baseStore(), storePath);
+  await fs.writeFile(
+    storePath,
+    JSON.stringify({ bookmarks }, null, 2),
+    "utf-8"
+  );
+  return storePath;
+}
 
-  const program = makeProgram(storePath);
-  await program.parseAsync(["node", "test", "rename", "GitHub", "GH", "--store", storePath]);
+describe("rename command", () => {
+  let tmpDir: string;
 
-  const data = JSON.parse(await fs.readFile(storePath, "utf-8"));
-  expect(data.bookmarks.find((b: any) => b.name === "GH")).toBeDefined();
-  expect(data.bookmarks.find((b: any) => b.name === "GitHub")).toBeUndefined();
-});
+  beforeEach(async () => {
+    tmpDir = await makeTempDir();
+  });
 
-test("exits with error if old name not found", async () => {
-  const dir = await makeTempDir();
-  const storePath = path.join(dir, "bookmarks.json");
-  await saveStore(baseStore(), storePath);
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
 
-  const program = makeProgram(storePath);
-  const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+  it("renames a bookmark successfully", async () => {
+    const storePath = await makeStorePath(tmpDir, [
+      { name: "GitHub", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+    ]);
 
-  await expect(
-    program.parseAsync(["node", "test", "rename", "Nonexistent", "New", "--store", storePath])
-  ).rejects.toThrow();
+    const program = makeProgram();
+    await program.parseAsync(["rename", "GitHub", "GH", "--store", storePath], { from: "user" });
 
-  mockExit.mockRestore();
-});
+    const raw = await fs.readFile(storePath, "utf-8");
+    const store = JSON.parse(raw);
+    expect(store.bookmarks[0].name).toBe("GH");
+  });
 
-test("exits with error if new name conflicts with existing bookmark", async () => {
-  const dir = await makeTempDir();
-  const storePath = path.join(dir, "bookmarks.json");
-  await saveStore(baseStore(), storePath);
+  it("exits with error if old name not found", async () => {
+    const storePath = await makeStorePath(tmpDir, [
+      { name: "GitHub", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+    ]);
 
-  const program = makeProgram(storePath);
-  const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+    const program = makeProgram();
+    const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
 
-  await expect(
-    program.parseAsync(["node", "test", "rename", "GitHub", "MDN", "--store", storePath])
-  ).rejects.toThrow();
+    await expect(
+      program.parseAsync(["rename", "NotExist", "NewName", "--store", storePath], { from: "user" })
+    ).rejects.toThrow();
 
-  mockExit.mockRestore();
-});
+    mockExit.mockRestore();
+  });
 
-test("rename is case-insensitive for lookup", async () => {
-  const dir = await makeTempDir();
-  const storePath = path.join(dir, "bookmarks.json");
-  await saveStore(baseStore(), storePath);
+  it("exits with error if new name already exists", async () => {
+    const storePath = await makeStorePath(tmpDir, [
+      { name: "GitHub", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+      { name: "GitLab", url: "https://gitlab.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+    ]);
 
-  const program = makeProgram(storePath);
-  await program.parseAsync(["node", "test", "rename", "github", "GitHubNew", "--store", storePath]);
+    const program = makeProgram();
+    const mockExit = jest.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
 
-  const data = JSON.parse(await fs.readFile(storePath, "utf-8"));
-  expect(data.bookmarks.find((b: any) => b.name === "GitHubNew")).toBeDefined();
+    await expect(
+      program.parseAsync(["rename", "GitHub", "GitLab", "--store", storePath], { from: "user" })
+    ).rejects.toThrow();
+
+    mockExit.mockRestore();
+  });
+
+  it("rename is case-insensitive for lookup but preserves new name casing", async () => {
+    const storePath = await makeStorePath(tmpDir, [
+      { name: "github", url: "https://github.com", tags: [], folder: "", pinned: false, createdAt: new Date().toISOString() },
+    ]);
+
+    const program = makeProgram();
+    await program.parseAsync(["rename", "GITHUB", "MyGitHub", "--store", storePath], { from: "user" });
+
+    const raw = await fs.readFile(storePath, "utf-8");
+    const store = JSON.parse(raw);
+    expect(store.bookmarks[0].name).toBe("MyGitHub");
+  });
 });

@@ -6,7 +6,7 @@ export function registerRenameCommand(program: Command): void {
     .command("rename <oldName> <newName>")
     .description("Rename a bookmark by its current name")
     .option("-s, --store <path>", "path to bookmark store")
-    .action(async (oldName: string, newName: string, opts) => {
+    .action(async (oldName: string, newName: string, opts: { store?: string }) => {
       try {
         const store = await loadStore(opts.store);
 
@@ -20,9 +20,7 @@ export function registerRenameCommand(program: Command): void {
         }
 
         const conflict = store.bookmarks.find(
-          (b) =>
-            b.name.toLowerCase() === newName.toLowerCase() &&
-            b.name.toLowerCase() !== oldName.toLowerCase()
+          (b) => b.name.toLowerCase() === newName.toLowerCase()
         );
 
         if (conflict) {
@@ -30,13 +28,15 @@ export function registerRenameCommand(program: Command): void {
           process.exit(1);
         }
 
-        const old = store.bookmarks[index].name;
-        store.bookmarks[index].name = newName;
+        store.bookmarks[index] = {
+          ...store.bookmarks[index],
+          name: newName,
+        };
 
         await saveStore(store, opts.store);
-        console.log(`Renamed "${old}" to "${newName}".`);
-      } catch (err: any) {
-        console.error("Error renaming bookmark:", err.message);
+        console.log(`Renamed "${oldName}" → "${newName}"`);
+      } catch (err) {
+        console.error("Failed to rename bookmark:", (err as Error).message);
         process.exit(1);
       }
     });

@@ -1,38 +1,52 @@
 # `rename` Command
 
-Rename an existing bookmark's title by its unique ID.
+Rename an existing bookmark by its current name.
 
 ## Usage
 
 ```
-shelf rename <id> <newTitle> [options]
+shelf rename <oldName> <newName> [options]
 ```
 
 ## Arguments
 
-| Argument   | Description                          |
-|------------|--------------------------------------|
-| `id`       | The unique ID of the bookmark        |
-| `newTitle` | The new title to assign the bookmark |
+| Argument   | Description                         |
+|------------|-------------------------------------|
+| `oldName`  | The current name of the bookmark    |
+| `newName`  | The new name to assign              |
 
 ## Options
 
-| Flag           | Description                                      |
-|----------------|--------------------------------------------------|
-| `-s, --sync`   | Commit and push changes to remote after renaming |
+| Flag              | Description                              |
+|-------------------|------------------------------------------|
+| `-s, --store <path>` | Path to a custom bookmark store file |
 
 ## Examples
 
-```bash
-# Rename a bookmark
-shelf rename abc123 "My Updated Title"
+### Basic rename
 
-# Rename and sync to remote
-shelf rename abc123 "My Updated Title" --sync
+```bash
+shelf rename GitHub GH
 ```
+
+Renames the bookmark `GitHub` to `GH`.
+
+### Case-insensitive lookup
+
+The lookup for `<oldName>` is case-insensitive, so:
+
+```bash
+shelf rename github MyGitHub
+```
+
+Will match a bookmark named `github`, `GitHub`, or `GITHUB` and rename it to `MyGitHub`.
+
+## Error Cases
+
+- **Bookmark not found**: Exits with an error if no bookmark matches `<oldName>`.
+- **Name conflict**: Exits with an error if a bookmark named `<newName>` already exists.
 
 ## Notes
 
-- The bookmark ID can be found using `shelf list` or `shelf search`.
-- The title cannot be set to an empty or whitespace-only string.
-- When `--sync` is used, the change is committed and pushed via the configured git remote.
+- The rename operation preserves all other bookmark fields (URL, tags, folder, pinned status, etc.).
+- After renaming, you may want to run `shelf sync` to push the change to your remote store.
