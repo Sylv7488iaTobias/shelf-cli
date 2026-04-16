@@ -54,8 +54,18 @@ shelf alias list
 # docs                 -> https://docs.example.com
 ```
 
+## Error Cases
+
+| Situation | Error Message |
+|-----------|---------------|
+| Alias not found | `Error: No alias "<name>" found` |
+| Bookmark ID not found during `set` | `Error: No bookmark with ID "<id>" exists` |
+| Alias name already in use | `Error: Alias "<name>" already exists (use --force to overwrite)` |
+| Missing required argument | `Error: Missing required argument: <argument>` |
+
 ## Notes
 
 - Aliases are stored in the bookmark store file under an `aliases` key.
 - If the bookmark an alias points to is deleted, the alias will display `(missing: <id>)` in the list.
 - Alias names are case-sensitive.
+- Alias names may only contain letters, numbers, hyphens, and underscores.
