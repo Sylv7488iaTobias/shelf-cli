@@ -39,6 +39,19 @@ test('add then remind round-trip', async () => {
   expect(bm.remindAt).toBe('2099-03-15');
 });
 
+test('remind on unknown bookmark throws an error', async () => {
+  const { program, storePath } = await setup();
+
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+
+  await expect(
+    program.parseAsync(
+      ['remind', 'nonexistent', '2099-03-15', '--store', storePath],
+      { from: 'user' }
+    )
+  ).rejects.toThrow();
+});
+
 test('reminders command reflects stored remindAt', async () => {
   const { program, storePath } = await setup();
 
