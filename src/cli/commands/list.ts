@@ -42,7 +42,8 @@ export function registerListCommand(program: Command): void {
         if (options.json) {
           console.log(JSON.stringify(bookmarks, null, 2));
         } else {
-          console.log(`Showing ${bookmarks.length} bookmark(s):\n`);
+          const tagSuffix = options.tag ? ` with tag "${options.tag}"` : '';
+          console.log(`Showing ${bookmarks.length} bookmark(s)${tagSuffix}:\n`);
           console.log(formatSearchResults(bookmarks));
         }
       } catch (err) {
